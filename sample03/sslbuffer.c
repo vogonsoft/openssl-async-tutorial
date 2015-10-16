@@ -182,7 +182,7 @@ void SSLBuffer_func(evutil_socket_t fd, short event, void *arg)
 	}
 
 	if ( sslbuffer->fl_writing &&
-		( (sslbuffer->fl_want_read & EV_READ) || (sslbuffer->fl_want_write & EV_WRITE) ) )
+		( sslbuffer->fl_want_read || sslbuffer->fl_want_write ) )
 	{
 		SSLBufferTryWrite(sslbuffer);
 		return;

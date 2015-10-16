@@ -28,6 +28,7 @@ struct user_data {
 	struct buffer_t *buffer;
 	evutil_socket_t sock;
 	int write; /* Socket ready for writing? */
+	struct event *evwrite;
 };
 
 int
@@ -112,9 +113,15 @@ main(int argc, char **argv)
 	evutil_make_socket_nonblocking(sock);
 	user_data->sock = sock;
 
-	ev2 = event_new(base, sock, EV_READ | EV_WRITE | EV_PERSIST,
+	ev2 = event_new(base, sock, EV_READ | EV_PERSIST,
 		sock_cb, user_data);
 	res = event_add(ev2, NULL);
+
+
+	user_data->evwrite = event_new(base, sock,  EV_WRITE,
+		sock_cb, user_data);
+	res = event_add(user_data->evwrite, NULL);
+
 
 	/* Run the event loop. */
 	event_base_dispatch(base);
@@ -160,7 +167,8 @@ void console_func(evutil_socket_t fd, short event, void *arg)
 				{
 					BufferRemove(data->buffer, (size_t) n);
 					data->write = 0;
-				}	
+				}
+				event_add(data->evwrite, NULL);
 			}
 		}
 	}
@@ -203,6 +211,7 @@ void sock_cb(evutil_socket_t fd, short event, void *arg)
 			{
 				BufferRemove(data->buffer, (size_t) n);
 				data->write = 0;
+				event_add(data->evwrite, NULL);
 			}
 			else
 			{
