@@ -136,10 +136,12 @@ int SSLBufferConnect(struct sslbuffer_t *sslbuffer, const char *host,
 	ev_write = event_new(sslbuffer->base, fd, EV_WRITE|EV_PERSIST, SSLBuffer_func, sslbuffer);
 	if (ev_write == NULL)
 		goto Error;
-	/* We don't add ev_write here; we will do that only when we actually
-	   have something to write to SSL. */
+
+    res = event_add(ev_write, NULL);
+    if (res != 0)
+        goto Error;
 	sslbuffer->ev_write = ev_write;
-	
+
 	return 1;
 
 Error:
@@ -181,25 +183,31 @@ void SSLBuffer_func(evutil_socket_t fd, short event, void *arg)
 		return;
 	}
 
-	if ( sslbuffer->fl_writing &&
-		( sslbuffer->fl_want_read || sslbuffer->fl_want_write ) )
-	{
-		SSLBufferTryWrite(sslbuffer);
-		return;
-	}
-	
-	if ( sslbuffer->fl_reading &&
-		( (sslbuffer->fl_want_read) || (sslbuffer->fl_want_write) ) )
-	{
-		SSLBufferTryRead(sslbuffer);
-		return;
-	}
-	
+    if (sslbuffer->fl_writing)
+    {
+        if ( (sslbuffer->fl_want_read && (event & EV_READ)) ||
+             (sslbuffer->fl_want_write && (event & EV_WRITE)))
+        {
+            SSLBufferTryWrite(sslbuffer);
+        }
+        return;
+    }
+
+    if (sslbuffer->fl_reading)
+    {
+        if ( (sslbuffer->fl_want_read && (event & EV_READ)) ||
+             (sslbuffer->fl_want_write && (event & EV_WRITE)))
+        {
+            SSLBufferTryRead(sslbuffer);
+        }
+        return;
+    }
+
 	if (event & EV_WRITE)
 	{
 		SSLBufferTryWrite(sslbuffer);
 	}
-	
+
 	if (event & EV_READ)
 	{
 		SSLBufferTryRead(sslbuffer);
@@ -209,7 +217,7 @@ void SSLBuffer_func(evutil_socket_t fd, short event, void *arg)
 void SSLBufferWrite(struct sslbuffer_t *sslbuffer, uint8_t *data, size_t size)
 {
 	int res;
-	
+
 	BufferPush(sslbuffer->write_buffer_1, data, size);
 	res = event_add(sslbuffer->ev_write, NULL);
 }
