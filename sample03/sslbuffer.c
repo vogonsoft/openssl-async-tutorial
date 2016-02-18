@@ -115,7 +115,9 @@ int SSLBufferConnect(struct sslbuffer_t *sslbuffer, const char *host,
 	{
 		error = SSL_get_error(sslbuffer->ssl, res);
 		sslbuffer->fl_connecting = 1;
-		if (error != SSL_ERROR_WANT_CONNECT)
+		if ( (error != SSL_ERROR_WANT_CONNECT) &&
+		     (error != SSL_ERROR_WANT_READ) &&
+		     (error != SSL_ERROR_WANT_WRITE) )
 		{
 			printf("%s:%d: unknown error %lu\n", __FILE__, __LINE__, error);
 			print_errors();
